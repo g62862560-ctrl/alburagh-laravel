@@ -28,8 +28,8 @@
 </div>
 
 <style>
-#bk { --bk-line: #e2e4e8; --bk-head: #e7e9ec; --bk-odd: #fbfbfc; --bk-even: #f3f4f6; --bk-text: #3f4650; --bk-input: #fff; font-size: .8125rem; color: var(--bk-text); }
-html.dark #bk { --bk-line: #393c42; --bk-head: #34373c; --bk-odd: #24262a; --bk-even: #2b2e33; --bk-text: #e2e4e7; --bk-input: #18181b; }
+#bk { --bk-line: #e2e4e8; --bk-head: #e7e9ec; --bk-odd: #fbfbfc; --bk-even: #f3f4f6; --bk-text: #3f4650; --bk-input: #fff; --bk-sel: #fdecc0; font-size: .8125rem; color: var(--bk-text); }
+html.dark #bk { --bk-line: #393c42; --bk-head: #34373c; --bk-odd: #24262a; --bk-even: #2b2e33; --bk-text: #e2e4e7; --bk-input: #18181b; --bk-sel: #4a3a14; }
 #bk-page { width: 70px; text-align: center; }
 #bk button, #bk select, #bk input[type=search], #bk-page { padding: 4px 10px; border: 1px solid var(--bk-line); border-radius: .375rem; background: var(--bk-input); color: inherit; }
 .bk-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; }
@@ -53,6 +53,10 @@ html.dark #bk { --bk-line: #393c42; --bk-head: #34373c; --bk-odd: #24262a; --bk-
 #bk-table th.is-sorted.is-desc::after { content: ' ▼'; }
 #bk-table tbody tr:nth-child(odd) td { background: var(--bk-odd); }
 #bk-table tbody tr:nth-child(even) td { background: var(--bk-even); }
+/* opaque colour: the sticky title cell must hide the cells scrolling under it */
+#bk-table tbody tr.is-sel td + td { background: var(--bk-sel); }
+#bk-table .t { position: sticky; inset-inline-start: 0; z-index: 1; box-shadow: inset -1px 0 var(--bk-line), inset 1px 0 var(--bk-line); }
+#bk-table thead th.t { z-index: 3; }
 #bk-table td.n { text-align: center; font-variant-numeric: tabular-nums; }
 #bk-table td.e { cursor: text; }
 #bk-table td.is-editing { overflow: visible; white-space: normal; }
@@ -162,15 +166,15 @@ html.dark #bk { --bk-line: #393c42; --bk-head: #34373c; --bk-odd: #24262a; --bk-
         const full = String(label(f, r[f]));
         const max = { series_name: 20, subject: 20 ,short_description:30,print_place:20,illustrator:15}[f] ?? 30; // max characters per column; full value stays in the tooltip
         const text = full.length > max ? full.slice(0, max) + '…' : full;
-        return `<td class="e${c.type === 'number' ? ' n' : ''}" data-f="${f}" title="${esc(full)}">${esc(text)}</td>`;
+        return `<td class="e${c.type === 'number' ? ' n' : ''}${f === 'title' ? ' t' : ''}" data-f="${f}" title="${esc(full)}">${esc(text)}</td>`;
     };
 
     function draw() {
         const fields = shown();
         table.querySelector('thead').innerHTML = '<tr><th><input type="checkbox" id="bk-all"></th>'
-            + fields.map((f) => `<th${COLS[f].type === 'image' ? '' : ` data-sort="${f}"`} class="${state.sort === f ? 'is-sorted' + (state.dir === 'desc' ? ' is-desc' : '') : ''}" title="${esc(COLS[f].label)}">${esc(COLS[f].label)}</th>`).join('')
+            + fields.map((f) => `<th${COLS[f].type === 'image' ? '' : ` data-sort="${f}"`} class="${f === 'title' ? 't ' : ''}${state.sort === f ? 'is-sorted' + (state.dir === 'desc' ? ' is-desc' : '') : ''}" title="${esc(COLS[f].label)}">${esc(COLS[f].label)}</th>`).join('')
             + '<th></th></tr>';
-        table.querySelector('tbody').innerHTML = rows.map((r) => `<tr data-id="${r.id}"><td><input type="checkbox"${selected.has(r.id) ? ' checked' : ''}></td>`
+        table.querySelector('tbody').innerHTML = rows.map((r) => `<tr data-id="${r.id}"${selected.has(r.id) ? ' class="is-sel"' : ''}><td><input type="checkbox"${selected.has(r.id) ? ' checked' : ''}></td>`
             + fields.map((f) => cell(r, f)).join('')
             + `<td class="a"><a href="${EDIT_URL.replace('__ID__', r.id)}">تعديل</a></td></tr>`).join('');
         $('#bk-all').checked = rows.length > 0 && rows.every((r) => selected.has(r.id));
@@ -227,6 +231,7 @@ html.dark #bk { --bk-line: #393c42; --bk-head: #34373c; --bk-odd: #24262a; --bk-
 
         if (e.target.matches('input[type=checkbox]')) {
             e.target.checked ? selected.add(id) : selected.delete(id);
+            tr.classList.toggle('is-sel', e.target.checked);
             syncSelection();
             return;
         }
